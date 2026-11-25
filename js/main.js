@@ -1,8 +1,10 @@
 (function () {
   'use strict';
 
-  /* ---------- Tema claro / oscuro ---------- */
   var root = document.documentElement;
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* ---------- Tema claro / oscuro ---------- */
   var themeBtn = document.getElementById('theme-toggle');
   var sun = themeBtn.querySelector('[data-theme-icon="sun"]');
   var moon = themeBtn.querySelector('[data-theme-icon="moon"]');
@@ -27,6 +29,12 @@
   var menu = document.getElementById('mobile-menu');
   var openIcon = menuBtn.querySelector('[data-menu-icon="open"]');
   var closeIcon = menuBtn.querySelector('[data-menu-icon="close"]');
+  var lightbox = document.getElementById('lightbox');
+
+  function syncScrollLock() {
+    var locked = !menu.hidden || !lightbox.hidden;
+    document.body.classList.toggle('overflow-hidden', locked);
+  }
 
   function setMenu(open) {
     menu.hidden = !open;
@@ -34,7 +42,7 @@
     menuBtn.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
     openIcon.classList.toggle('hidden', open);
     closeIcon.classList.toggle('hidden', !open);
-    document.body.classList.toggle('overflow-hidden', open);
+    syncScrollLock();
   }
   menuBtn.addEventListener('click', function () { setMenu(menu.hidden); });
   menu.querySelectorAll('a').forEach(function (link) {
@@ -43,21 +51,28 @@
   document.addEventListener('click', function (e) {
     if (!menu.hidden && !menu.contains(e.target) && !menuBtn.contains(e.target)) setMenu(false);
   });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !menu.hidden) {
-      setMenu(false);
-      menuBtn.focus();
-    }
-  });
   window.matchMedia('(min-width: 1024px)').addEventListener('change', function (e) {
     if (e.matches && !menu.hidden) setMenu(false);
   });
 
-  /* ---------- Imágenes: skeleton y fallback ---------- */
+  /* ---------- Imágenes: esqueleto, error, reintento y estado vacío ---------- */
+  function updateGalleryEmpty() {
+    var grid = document.getElementById('gallery-grid');
+    var empty = document.getElementById('gallery-empty');
+    if (!grid || !empty) return;
+    var total = grid.querySelectorAll('.media').length;
+    if (!total) return;
+    var failed = grid.querySelectorAll('.media.is-error').length;
+    var isEmpty = failed === total;
+    grid.hidden = isEmpty;
+    empty.hidden = !isEmpty;
+  }
+
   function fallback(wrapper) {
     if (wrapper.hasAttribute('data-no-fallback') || wrapper.querySelector('.media-fallback')) return;
     var fb = document.createElement('div');
     fb.className = 'media-fallback';
+    fb.setAttribute('role', 'status');
     fb.innerHTML = '<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21z"/></svg><p>Imagen no disponible</p><button type="button" class="retry" data-retry>Reintentar</button>';
     wrapper.appendChild(fb);
   }
@@ -66,11 +81,12 @@
     wrapper.classList.remove('is-loading');
     wrapper.classList.add('is-error');
     fallback(wrapper);
+    updateGalleryEmpty();
   }
 
   document.querySelectorAll('.media').forEach(function (wrapper) {
     var img = wrapper.querySelector('img');
-    if (!img) return;
+    if (!img || !img.getAttribute('src')) return;
     if (img.complete) {
       if (img.naturalWidth > 0) wrapper.classList.remove('is-loading');
       else markFailed(wrapper);
@@ -84,6 +100,7 @@
     wrapper.classList.remove('is-loading', 'is-error');
     var fb = wrapper.querySelector('.media-fallback');
     if (fb) fb.remove();
+    updateGalleryEmpty();
   }, true);
 
   document.addEventListener('error', function (e) {
@@ -104,6 +121,62 @@
     if (fb) fb.remove();
     var base = img.getAttribute('src').split('&_r=')[0];
     img.src = base + '&_r=' + Date.now();
+    updateGalleryEmpty();
+  });
+
+  /* ---------- Lightbox de galería ---------- */
+  var lbMedia = document.getElementById('lightbox-media');
+  var lbImg = document.getElementById('lightbox-img');
+  var lbCaption = document.getElementById('lightbox-caption');
+  var lbClose = document.getElementById('lightbox-close');
+  var lastTrigger = null;
+
+  function openLightbox(img, caption) {
+    lastTrigger = document.activeElement;
+    var src = (img.currentSrc || img.src).split('&_r=')[0].replace('w=800', 'w=1600');
+    lbMedia.classList.add('is-loading');
+    lbMedia.classList.remove('is-error');
+    var oldFallback = lbMedia.querySelector('.media-fallback');
+    if (oldFallback) oldFallback.remove();
+    lbImg.alt = img.alt || caption || 'Trabajo de Polarlux Detailing';
+    lbImg.src = src;
+    lbCaption.textContent = caption || '';
+    lightbox.hidden = false;
+    syncScrollLock();
+    lbClose.focus();
+  }
+
+  function closeLightbox() {
+    if (lightbox.hidden) return;
+    lightbox.hidden = true;
+    syncScrollLock();
+    if (lastTrigger && document.contains(lastTrigger)) lastTrigger.focus();
+  }
+
+  document.querySelectorAll('[data-lightbox-gallery] figure').forEach(function (figure) {
+    var media = figure.querySelector('.media');
+    var img = media && media.querySelector('img');
+    if (!img) return;
+    var label = figure.querySelector('.media-label');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'gallery-open';
+    btn.setAttribute('aria-label', 'Ampliar imagen' + (label ? ': ' + label.textContent.trim() : ''));
+    btn.addEventListener('click', function () {
+      openLightbox(img, label ? label.textContent.trim() : '');
+    });
+    media.appendChild(btn);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-lightbox-close]')) closeLightbox();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (!lightbox.hidden) { closeLightbox(); return; }
+      if (!menu.hidden) { setMenu(false); menuBtn.focus(); }
+    }
   });
 
   /* ---------- Toast al abrir WhatsApp ---------- */
@@ -128,6 +201,7 @@
   var success = document.getElementById('quote-success');
   var successLink = document.getElementById('success-link');
   var resetBtn = document.getElementById('quote-reset');
+  var submitBtn = form.querySelector('[type="submit"]');
   var fields = Array.prototype.slice.call(form.querySelectorAll('[data-field]'));
 
   function controlOf(field) { return field.querySelector('input, select'); }
@@ -136,6 +210,7 @@
     var field = control.closest('[data-field]');
     var error = field.querySelector('.field-error');
     field.classList.toggle('is-invalid', invalid);
+    field.classList.toggle('is-valid', !invalid && control.value.trim() !== '');
     control.setAttribute('aria-invalid', invalid ? 'true' : 'false');
     error.hidden = !invalid;
   }
@@ -153,6 +228,7 @@
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+    if (submitBtn.disabled) return;
     var firstInvalid = null;
 
     fields.forEach(function (field) {
@@ -173,11 +249,26 @@
       ' para mi ' + data.get('vehiculo').trim() + '.';
     var url = 'https://wa.me/573014576626?text=' + encodeURIComponent(message);
 
-    successLink.href = url;
-    window.open(url, '_blank', 'noopener');
-    form.hidden = true;
-    success.hidden = false;
-    success.focus();
+    /* Estado de carga de la acción: shimmer, sin spinner */
+    submitBtn.classList.add('is-loading');
+    submitBtn.disabled = true;
+    submitBtn.setAttribute('aria-busy', 'true');
+    submitBtn.textContent = 'Preparando WhatsApp…';
+
+    function finish() {
+      successLink.href = url;
+      window.open(url, '_blank', 'noopener');
+      form.hidden = true;
+      success.hidden = false;
+      success.focus();
+      submitBtn.classList.remove('is-loading');
+      submitBtn.disabled = false;
+      submitBtn.removeAttribute('aria-busy');
+      submitBtn.textContent = 'Continuar por WhatsApp';
+    }
+
+    if (reduceMotion.matches) finish();
+    else setTimeout(finish, 650);
   });
 
   resetBtn.addEventListener('click', function () {
@@ -185,6 +276,7 @@
     fields.forEach(function (field) {
       var control = controlOf(field);
       setInvalid(control, false);
+      field.classList.remove('is-valid');
       control.removeAttribute('aria-invalid');
     });
     success.hidden = true;
