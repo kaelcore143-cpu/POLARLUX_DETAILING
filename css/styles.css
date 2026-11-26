@@ -56,25 +56,6 @@
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
 
-[data-theme="light"] {
-  color-scheme: light;
-  --c-base: 247 246 239;
-  --c-surface: 255 255 255;
-  --c-raised: 237 240 231;
-  --c-fg: 10 32 22;
-  --c-muted: 70 86 75;
-  --c-line: 10 32 22;
-  --c-accent: 138 103 12;
-  --c-accent-soft: 176 136 26;
-  --c-on-accent: 255 255 255;
-  --c-success: 22 122 68;
-  --c-warning: 150 90 0;
-  --c-danger: 190 40 38;
-  --shadow-card: 0 24px 50px -34px rgb(10 32 22 / .35);
-  --shadow-float: 0 18px 40px -18px rgb(10 32 22 / .35);
-  --shadow-accent: 0 14px 30px -16px rgb(138 103 12 / .4);
-}
-
 @media (min-width: 1280px) { :root { --container-max: 84rem; } }
 @media (min-width: 1536px) { :root { --container-max: 90rem; } }
 
@@ -87,8 +68,10 @@ body {
   color: rgb(var(--c-fg));
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
   transition: background-color .3s ease, color .3s ease;
 }
+img { max-width: 100%; }
 h1, h2, h3, .font-display { font-family: var(--font-display); }
 section[id] { scroll-margin-top: 5.5rem; }
 ::selection { background: rgb(var(--c-accent) / .35); }
@@ -281,54 +264,6 @@ section[id] { scroll-margin-top: 5.5rem; }
 .retry:hover { border-color: rgb(var(--c-accent)); color: rgb(var(--c-accent)); }
 @keyframes shimmer { to { background-position: -220% 0; } }
 
-.media-label {
-  position: absolute; left: .75rem; bottom: .75rem; z-index: 3;
-  font-size: .625rem; letter-spacing: var(--tracking-wide); text-transform: uppercase;
-  padding: .3rem .65rem; border-radius: var(--radius-pill);
-  background: rgb(6 16 12 / .72); color: #F4F4EB;
-  backdrop-filter: blur(6px);
-}
-.gallery-open {
-  position: absolute; inset: 0; z-index: 4;
-  width: 100%; height: 100%; border: 0; background: transparent;
-  cursor: zoom-in;
-}
-.gallery-open:focus-visible { outline: 2px solid rgb(var(--c-accent)); outline-offset: -4px; }
-
-/* Modal / lightbox */
-.modal {
-  position: fixed; inset: 0; z-index: 1400;
-  display: flex; align-items: center; justify-content: center;
-  padding: var(--space-4);
-}
-.modal-backdrop {
-  position: absolute; inset: 0;
-  background: rgb(3 10 7 / .82);
-  backdrop-filter: blur(8px);
-}
-.modal-panel {
-  position: relative;
-  width: min(100%, 72rem);
-  max-height: calc(100svh - 2rem);
-  overflow-y: auto;
-  padding: var(--space-4) var(--space-4) var(--space-5);
-  animation: modal-in .22s var(--ease);
-}
-@media (min-width: 640px) { .modal-panel { padding: var(--space-5); } }
-.modal-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--space-4); margin-bottom: var(--space-3);
-}
-.modal-media {
-  width: 100%; aspect-ratio: 16 / 10;
-  border-radius: var(--radius-md);
-}
-.modal-media img { object-fit: contain; background: rgb(var(--c-raised)); }
-@keyframes modal-in {
-  from { opacity: 0; transform: translateY(12px) scale(.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
 /* Formulario */
 .field label { display: block; font-size: .8rem; font-weight: 500; margin-bottom: .4rem; }
 .input {
@@ -347,6 +282,34 @@ section[id] { scroll-margin-top: 5.5rem; }
 .field.is-invalid .input { border-color: rgb(var(--c-danger)); }
 .field-error { margin-top: .35rem; font-size: .75rem; color: rgb(var(--c-danger)); }
 .field.is-valid .input { border-color: rgb(var(--c-success) / .6); }
+.field-check label { display: inline; font-size: inherit; font-weight: 400; margin: 0; }
+.checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 18px; height: 18px;
+  margin-top: 1px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: rgb(var(--c-base) / .6);
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.checkbox:checked {
+  background: rgb(var(--c-accent));
+  border-color: rgb(var(--c-accent));
+}
+.checkbox:checked::after {
+  content: "";
+  display: block;
+  width: 4px; height: 9px;
+  margin: 2px auto 0;
+  border: solid rgb(var(--c-on-accent));
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.checkbox:focus-visible { outline: 2px solid rgb(var(--c-accent)); outline-offset: 2px; }
+.field.is-invalid .checkbox { border-color: rgb(var(--c-danger)); }
 
 /* Toast y CTA flotante */
 .toast {
@@ -385,7 +348,6 @@ section[id] { scroll-margin-top: 5.5rem; }
     padding-inline: clamp(1rem, 4vw, 2rem);
     padding-top: var(--space-10);
   }
-  .modal-media { aspect-ratio: 21 / 9; }
 }
 
 @media (prefers-reduced-motion: reduce) {
