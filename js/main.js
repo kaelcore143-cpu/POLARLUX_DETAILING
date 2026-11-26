@@ -1,39 +1,16 @@
 (function () {
   'use strict';
 
-  var root = document.documentElement;
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-  /* ---------- Tema claro / oscuro ---------- */
-  var themeBtn = document.getElementById('theme-toggle');
-  var sun = themeBtn.querySelector('[data-theme-icon="sun"]');
-  var moon = themeBtn.querySelector('[data-theme-icon="moon"]');
-
-  function applyTheme(theme) {
-    var light = theme === 'light';
-    root.dataset.theme = light ? 'light' : 'dark';
-    themeBtn.setAttribute('aria-pressed', light ? 'true' : 'false');
-    themeBtn.setAttribute('aria-label', light ? 'Activar tema oscuro' : 'Activar tema claro');
-    sun.classList.toggle('hidden', light);
-    moon.classList.toggle('hidden', !light);
-  }
-  applyTheme(root.dataset.theme || 'dark');
-  themeBtn.addEventListener('click', function () {
-    var next = root.dataset.theme === 'light' ? 'dark' : 'light';
-    applyTheme(next);
-    try { localStorage.setItem('polarlux-theme', next); } catch (e) {}
-  });
 
   /* ---------- Menú móvil ---------- */
   var menuBtn = document.getElementById('menu-toggle');
   var menu = document.getElementById('mobile-menu');
   var openIcon = menuBtn.querySelector('[data-menu-icon="open"]');
   var closeIcon = menuBtn.querySelector('[data-menu-icon="close"]');
-  var lightbox = document.getElementById('lightbox');
 
   function syncScrollLock() {
-    var locked = !menu.hidden || !lightbox.hidden;
-    document.body.classList.toggle('overflow-hidden', locked);
+    document.body.classList.toggle('overflow-hidden', !menu.hidden);
   }
 
   function setMenu(open) {
@@ -124,58 +101,10 @@
     updateGalleryEmpty();
   });
 
-  /* ---------- Lightbox de galería ---------- */
-  var lbMedia = document.getElementById('lightbox-media');
-  var lbImg = document.getElementById('lightbox-img');
-  var lbCaption = document.getElementById('lightbox-caption');
-  var lbClose = document.getElementById('lightbox-close');
-  var lastTrigger = null;
-
-  function openLightbox(img, caption) {
-    lastTrigger = document.activeElement;
-    var src = (img.currentSrc || img.src).split('&_r=')[0].replace('w=800', 'w=1600');
-    lbMedia.classList.add('is-loading');
-    lbMedia.classList.remove('is-error');
-    var oldFallback = lbMedia.querySelector('.media-fallback');
-    if (oldFallback) oldFallback.remove();
-    lbImg.alt = img.alt || caption || 'Trabajo de Polarlux Detailing';
-    lbImg.src = src;
-    lbCaption.textContent = caption || '';
-    lightbox.hidden = false;
-    syncScrollLock();
-    lbClose.focus();
-  }
-
-  function closeLightbox() {
-    if (lightbox.hidden) return;
-    lightbox.hidden = true;
-    syncScrollLock();
-    if (lastTrigger && document.contains(lastTrigger)) lastTrigger.focus();
-  }
-
-  document.querySelectorAll('[data-lightbox-gallery] figure').forEach(function (figure) {
-    var media = figure.querySelector('.media');
-    var img = media && media.querySelector('img');
-    if (!img) return;
-    var label = figure.querySelector('.media-label');
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'gallery-open';
-    btn.setAttribute('aria-label', 'Ampliar imagen' + (label ? ': ' + label.textContent.trim() : ''));
-    btn.addEventListener('click', function () {
-      openLightbox(img, label ? label.textContent.trim() : '');
-    });
-    media.appendChild(btn);
-  });
-
-  document.addEventListener('click', function (e) {
-    if (e.target.closest('[data-lightbox-close]')) closeLightbox();
-  });
-
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      if (!lightbox.hidden) { closeLightbox(); return; }
-      if (!menu.hidden) { setMenu(false); menuBtn.focus(); }
+    if (e.key === 'Escape' && !menu.hidden) {
+      setMenu(false);
+      menuBtn.focus();
     }
   });
 
@@ -209,13 +138,15 @@
   function setInvalid(control, invalid) {
     var field = control.closest('[data-field]');
     var error = field.querySelector('.field-error');
+    var filled = control.type === 'checkbox' ? control.checked : control.value.trim() !== '';
     field.classList.toggle('is-invalid', invalid);
-    field.classList.toggle('is-valid', !invalid && control.value.trim() !== '');
+    field.classList.toggle('is-valid', !invalid && filled);
     control.setAttribute('aria-invalid', invalid ? 'true' : 'false');
     error.hidden = !invalid;
   }
 
   function isValid(control) {
+    if (control.type === 'checkbox') return control.checked;
     if (control.tagName === 'SELECT') return control.value !== '';
     return control.value.trim().length >= 2;
   }
